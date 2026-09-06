@@ -351,7 +351,7 @@ $script:Tests = @{
     'TestPassed' = $null
     'TestFailMsg' = @'
     Write-Host "$([Environment]::NewLine)[FAIL] " -ForegroundColor Red -NoNewLine
-    Write-Host "Game is installed on a USB drive. This may slow game patching & cause audio stuttering."
+    Write-Host "Game is installed on a USB drive. This can cause various issues, recommend moving to a SATA or NVMe drive."
 '@
     }
 "FasterDriveAvailable" = @{
