@@ -356,7 +356,7 @@ $script:Tests = @{
     }
 "FasterDriveAvailable" = @{
     'TestPassed' = $null
-    'fasterDrives' = $null
+    'FasterDisks' = $null
     'TestFailMsg' = @'
     Write-Host "$([Environment]::NewLine)[INFO] " -NoNewLine
     Write-Host "There are faster drives available to install the game to:"
@@ -364,9 +364,8 @@ $script:Tests = @{
     @{ Name = 'Disk Name'; Expression = { $_.FriendlyName } }
     @{ Name = 'BusType';   Expression = { $_.BusType } }
     @{ Name = 'MediaType'; Expression = { $_.MediaType } }
-    @{ Name = 'Size';      Expression = { Convert-Size $_.Size } }
     )
-    $($script:Tests.FasterDriveAvailable.fasterDrives) | Select-Object $columns | Format-Table -AutoSize
+    $($script:Tests.FasterDriveAvailable.FasterDisks) | Select-Object $columns | Format-Table -AutoSize
 '@
     }
 
@@ -2136,14 +2135,24 @@ Function Test-PendingReboot {
 }
 Function Test-SSDFreeSpace {
 
-    If ($script:DetectedOS -eq 'Windows') {
+    If ($script:DetectedOS -eq 'Windows')
+    {
         $GameVolume = Get-Volume -DriveLetter (Split-Path $script:AppInstallPath -Qualifier).TrimEnd(":")
-        $GamePhysicalDisk = $GameVolume | Get-Partition | Get-Disk | Get-PhysicalDisk
         $GameVolumeFreeSpace = ($GameVolume.SizeRemaining / $GameVolume.Size) * 100
-        $isSSD = ($null -ne $GamePhysicalDisk -and $GamePhysicalDisk.MediaType -eq 'SSD')
+        try
+        {
+            $GamePhysicalDisk = $GameVolume | Get-Partition | Get-Disk | Get-PhysicalDisk
+            $isSSD = ($null -ne $GamePhysicalDisk -and $GamePhysicalDisk.MediaType -eq 'SSD')
+        }
+        catch
+        {
+            Write-Host "[Warn] " -NoNewline -ForegroundColor DarkYellow
+            Write-Host "Could not detect drive type. Skipping disk size check..."
+            $isSSD = $false
+        }
     }
-
-    ElseIf ($script:DetectedOS -eq 'Linux') {
+    ElseIf ($script:DetectedOS -eq 'Linux')
+    {
         # Determine mount point
         $mount = ((df -P "$script:AppInstallPath" | Select-Object -Skip 1) -split '\s+')[5]
 
@@ -2164,32 +2173,42 @@ Function Test-SSDFreeSpace {
 
         $isSSD = (Test-Path $rotFile -and (Get-Content $rotFile) -eq "0")
     }
-    $script:Tests.SSDFreeSpace.TestPassed =
-        (($GameVolumeFreeSpace -ge 25 -and $isSSD) -or (-not $isSSD))
-}
-Function Test-FreeDiskSpace {
 
+    $script:Tests.SSDFreeSpace.TestPassed = (($GameVolumeFreeSpace -ge 25 -and $isSSD) -or (-not $isSSD))
+}
+Function Test-FreeDiskSpace
+{
     If ($script:DetectedOS -eq 'Windows') {
         $GameVolume = Get-Volume -DriveLetter (Split-Path $script:AppInstallPath -Qualifier).TrimEnd(":")
         $free = $GameVolume.SizeRemaining
     }
-
     ElseIf ($script:DetectedOS -eq 'Linux') {
         $mount = ((df -P "$script:AppInstallPath" | Select-Object -Skip 1) -split '\s+')[5]
         $df = df -B1 "$mount" | Select-Object -Skip 1
         $parts = $df -split "\s+"
         $free = [double]$parts[3]
     }
+
     $script:Tests.FreeDiskSpace.TestPassed = ($free -gt 30GB)
 }
-Function Test-USBGameDrive {
+Function Test-USBGameDrive
+{
     $isUSB = switch ($script:DetectedOS)
     {
         "Windows" 
         {
-            $GameVolume = Get-Volume -DriveLetter (Split-Path $script:AppInstallPath -Qualifier).TrimEnd(":") -ErrorAction SilentlyContinue
-            $GamePhysicalDisk = $GameVolume | Get-Partition -ErrorAction SilentlyContinue | Get-Disk -ErrorAction SilentlyContinue | Get-PhysicalDisk -ErrorAction SilentlyContinue
-            $GamePhysicalDisk -and ($GamePhysicalDisk.PSObject.Properties.Name -contains 'BusType') -and ($GamePhysicalDisk.BusType -eq "USB")
+            $GameVolume = Get-Volume -DriveLetter (Split-Path $script:AppInstallPath -Qualifier).TrimEnd(":")
+            try
+            {
+                $GameDisk = $GameVolume | Get-Partition | Get-Disk
+            }
+            catch
+            {
+                Write-Host "[Warn] " -NoNewline -ForegroundColor DarkYellow
+                Write-Host "Error determining drive BusType. Assuming drive is not USB..."
+            }
+
+            $GameDisk -and ($GameDisk.BusType -eq "USB")
         }
 
         "Linux"
@@ -2206,19 +2225,22 @@ Function Test-USBGameDrive {
     $script:Tests.USBGameDrive.TestPassed = (-not $isUSB)
 }
 
-Function Test-FasterDriveAvailable {
+Function Test-FasterDriveAvailable
+{
+    $script:Tests.FasterDriveAvailable.FasterDisks = @()
 
-    $script:Tests.FasterDriveAvailable.fasterDrives = @()
-
-    if ($script:DetectedOS -eq 'Windows') {
+    if ($script:DetectedOS -eq 'Windows')
+    {
         $GameVolume = Get-Volume -DriveLetter (Split-Path $script:AppInstallPath -Qualifier).TrimEnd(":")
-        $GamePhysicalDisk = $GameVolume | Get-Partition | Get-Disk | Get-PhysicalDisk
-        $GameDiskScore = Get-DiskScore $GamePhysicalDisk
+        $GameDisk = $GameVolume | Get-Partition | Get-Disk
+        $GameDiskScore = Get-DiskScore $GameDisk
 
-        foreach ($systemDisk in Get-PhysicalDisk | Where-Object { $_.UniqueId -ne $GamePhysicalDisk.UniqueId }) {
+        foreach($systemDisk in Get-Disk | Where-Object { $_ -ne $GameDisk })
+        {
             $score = Get-DiskScore $systemDisk
-            if ($score -gt $GameDiskScore) {
-                $script:Tests.FasterDriveAvailable.fasterDrives += $systemDisk
+            if ($score -gt $GameDiskScore)
+            {
+                $script:Tests.FasterDriveAvailable.FasterDisks += $systemDisk
             }
         }
     }
@@ -2248,13 +2270,12 @@ Function Test-FasterDriveAvailable {
 
             $score = Get-LinuxDiskScore $dev
             if ($score -gt $GameDiskScore) {
-                $script:Tests.FasterDriveAvailable.fasterDrives += $dev
+                $script:Tests.FasterDriveAvailable.FasterDisks += $dev
             }
         }
     }
 
-    $script:Tests.FasterDriveAvailable.TestPassed =
-        ($script:Tests.FasterDriveAvailable.fasterDrives.Count -eq 0)
+    $script:Tests.FasterDriveAvailable.TestPassed = ($script:Tests.FasterDriveAvailable.FasterDisks.Count -eq 0)
 }
 
 Function Test-BetaBranch
@@ -2282,23 +2303,28 @@ Function Get-DiskScore($disk)
     if (-not $disk) { return 0 }
     $score = 0
 
-    $busType = $null
-    if (Get-Member -InputObject $disk -Name 'BusType' -ErrorAction SilentlyContinue)
+    try
     {
-        $busType = $disk.BusType
+        Switch ($disk.BusType)
+        {
+            "NVMe"  { $score += 2 }
+            "SATA"  { $score += 1 }
+            default { $score += 0 }
+        }
     }
+    catch { }
 
-    Switch ($busType)
-    {
-        "NVMe"  { $score += 2 }
-        "SATA"  { $score += 1 }
-        default { $score += 0 }
-    }
 
-    if ((Get-Member -InputObject $disk -Name 'BusType') -and $disk.MediaType -eq "SSD")
+    try
     {
-        $score += 1
+        $physicalDisk = $disk | Get-PhysicalDisk
+        if($physicalDisk.MediaType -eq "SSD")
+        {
+            $score += 1
+        }
     }
+    catch { }
+
     Return $score
 }
 Function Convert-Size($bytes) {
