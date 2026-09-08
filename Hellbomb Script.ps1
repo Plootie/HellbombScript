@@ -884,7 +884,7 @@ Function Show-WindowsGPUInfo {
     ForEach ($gpu in $gpus) {
         $vendor = 'Generic'
         $driverVersion = $gpu.DriverVersion
-        $archCodename = 'Not Identified'
+        $archCodename = 'Udentified'
         If ( $gpu.Name.Contains( 'AMD' ) ) {
             $vendor = 'AMD'
             If ( [bool]($script:Tests.NoVegaGPUs.VegaPCIDevIDs | Where-Object { $gpu.PNPDeviceID -match "DEV_$_" } | Select-Object -First 1) ) {
@@ -893,7 +893,7 @@ Function Show-WindowsGPUInfo {
             Try {
                 $driverVersion = (Get-ItemProperty -Path "HKLM:\SOFTWARE\ATI Technologies\Install" -Name RadeonSoftwareVersion).RadeonSoftwareVersion
             } Catch {
-                $driverVersion = $gpu.DriverVersion + ' ( Windows Driver Version Format ) '
+                $driverVersion = $gpu.DriverVersion + ' (Windows Driver Version Format)'
             }
         }
         ElseIf ( $gpu.Name.Contains( 'NVIDIA' ) ) {
@@ -920,7 +920,7 @@ Function Show-WindowsGPUInfo {
                     $driverVersion = (New-Object System.IO.StreamReader($process.StandardOutput.BaseStream, [System.Text.Encoding]::UTF8)).ReadToEnd().Trim()
                     $process.WaitForExit()
                 } Catch {
-                    $driverVersion = $gpu.DriverVersion + ' ( Windows Driver Version Format ) '
+                    $driverVersion = $gpu.DriverVersion + " (Windows Driver Version Format)"
                 }
         }
         ElseIf ( $gpu.Name.Contains( 'INTEL(R)' ) ) {
@@ -936,10 +936,11 @@ Function Show-WindowsGPUInfo {
             driverVersion = $driverVersion
 			archCodename = $archCodename
         }
-        Write-Host "  GPU Model: $($gpu.Name)"
-        Write-Host "   Codename: $($script:SystemInfo["GPUInfo"][-1].archCodename)"
-        Write-Host "  Drvr Ver.: $($script:SystemInfo["GPUInfo"][-1].DriverVersion)"
-        Write-Host "     Status: " -NoNewLine
+        
+        Write-Host "GPU Model: $($gpu.Name)"
+        Write-Host "Codename : $($script:SystemInfo["GPUInfo"][-1].archCodename)"
+        Write-Host "Drvr Ver.: $($script:SystemInfo["GPUInfo"][-1].DriverVersion)"
+        Write-Host "Status   : " -NoNewLine
         If ( $gpu.Status -ne 'OK' ) {
                 Write-Host $gpu.Status -ForegroundColor Red
             }
