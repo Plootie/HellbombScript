@@ -1835,14 +1835,13 @@ Function Test-ClientDnsConfig {
         If (-not ([string]::IsNullOrEmpty(($dnsServersIPv4 | Get-Member -Name 'ServerAddresses')))) {
             Write-Host "[PASS]" -ForegroundColor Green -NoNewLine
             Write-Host " Detected IPv4 DNS servers:" -ForegroundColor Cyan
-            $dnsServersIPv4.ServerAddresses | ForEach-Object { Write-Host "       $_"
-            }
-            Write-Host "$([Environment]::NewLine)       Testing IPv4 DNS server(s)..." -ForegroundColor Cyan
+            $dnsServersIPv4.ServerAddresses | ForEach-Object { Write-Host " $_" }
+            Write-Host "$([Environment]::NewLine) Testing IPv4 DNS server(s)..." -ForegroundColor Cyan
             Test-DnsResolution -hostname $hostname -dnsServers $dnsServersIPv4.ServerAddresses
         }
         Else {
             Write-Host '[FAIL] No IPv4 DNS servers found!' -ForegroundColor Yellow
-            Write-Host '      Your internet is probably down right now.'
+            Write-Host '  Your internet is probably down right now.'
         }
 
     # Get the DNS servers for IPv6
@@ -1860,9 +1859,9 @@ Function Test-ClientDnsConfig {
         If (-not ([string]::IsNullOrEmpty(($dnsServersIPv6 | Get-Member -Name 'ServerAddresses')))) {
         Write-Host "[PASS]" -ForegroundColor Green -NoNewLine
         Write-Host ' Detected IPv6 DNS server(s):' -ForegroundColor Cyan
-        $dnsServersIPv6.ServerAddresses | ForEach-Object { Write-Host "       $_"
+        $dnsServersIPv6.ServerAddresses | ForEach-Object { Write-Host " $_"
         }
-        Write-Host "$([Environment]::NewLine)       Testing IPv6 DNS servers..." -ForegroundColor Cyan
+        Write-Host "$([Environment]::NewLine)Testing IPv6 DNS servers..." -ForegroundColor Cyan
         Try {
             Test-DnsResolution -hostname $hostname -dnsServers $dnsServersIPv6.ServerAddresses
         } Catch {
