@@ -1817,7 +1817,7 @@ Function Test-DnsResolution {
 }
 Function Test-ClientDnsConfig {
     # Define the hostname to test
-    $hostname = "www.google.com"
+    $hostname = "google.com"
     # Get the main network adapter with the default route
     $mainAdapter = Get-NetRoute -DestinationPrefix '0.0.0.0/0' |
     Sort-Object -Property { $_.InterfaceMetric + $_.RouteMetric } |
