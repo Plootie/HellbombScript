@@ -1117,7 +1117,7 @@ Function Show-GameLaunchOptions {
         $HD2LaunchOptions = $HD2ConfigData["LaunchOptions"]
         if([string]::IsNullOrWhiteSpace($HD2LaunchOptions))
         {
-            Write-Host "No launch options currently in use."
+            Write-Host "No launch options detected."
         }
         Else
         {
