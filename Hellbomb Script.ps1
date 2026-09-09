@@ -1820,9 +1820,14 @@ Function Test-ClientDnsConfig {
     # Define the hostname to test
     $hostname = "google.com"
     # Get the main network adapter with the default route
-    $mainAdapter = Get-NetRoute -DestinationPrefix '0.0.0.0/0' |
-    Sort-Object -Property { $_.InterfaceMetric + $_.RouteMetric } |
-    Select-Object -First 1 | Get-NetAdapter
+    $wildcardRoutes = @(Get-NetRoute -DestinationPrefix '0.0.0.0/0' -AddressFamily IPv4 -ErrorAction Stop)
+    if($wildcardRoutes.Count -le 0)
+    {
+        Write-Host "[FAIL] " -NoNewline -ForegroundColor Red
+        Write-Host "No network adapters with valid configuration. You probably don't have internet right now."
+    }
+    $bestRoute = $wildcardRoutes | Sort-Object { $_.InterfaceMetric + $_.RouteMetric } | Select-Object -First 1
+    $mainAdapter = $bestRoute | Get-NetAdapter
 
     Test-DnsFamily -AddressFamily IPv4 -InterfaceIndex $mainAdapter.InterfaceIndex -Hostname $hostname
     Test-DnsFamily -AddressFamily IPv6 -InterfaceIndex $mainAdapter.InterfaceIndex -Hostname $hostname
@@ -1890,7 +1895,6 @@ FUnction Test-DnsFamily
     Write-Host "`nTesting $AddressFamily DNS server(s)..." -ForegroundColor Cyan
     Test-DnsResolution -hostname $Hostname -dnsServers $servers
 }
-
 
 Function Test-Wifi {
     # Ping the default gateway for 30 seconds and collect statistics
