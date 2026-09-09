@@ -1887,6 +1887,10 @@ Function Test-DnsFamily
                 Write-Host "[FAIL] " -NoNewline -ForegroundColor Yellow
                 Write-Host "$noServerFoundMessage"
 
+                if($Adapter.Virtual)
+                {
+                    Write-Host "Ensure IPv6 is disabled in your VPN or.."
+                }
                 Write-Host "Consider setting an IPv6 DNS server like " -NoNewline
                 Write-Host "2606:4700:4700::1111" -ForegroundColor Cyan -NoNewLine
                 Write-Host " on your network adapter."
