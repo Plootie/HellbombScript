@@ -1878,7 +1878,7 @@ Function Test-DnsFamily
             }
             catch
             {
-                Write-Host "Failed to open adapter properties. Opening adatper panel instead..."
+                Write-Host "Failed to open adapter properties. Opening adapter panel instead..."
                 Start-Process "ncpa.cpl"
             }
         }
@@ -1917,7 +1917,7 @@ Function Test-DnsFamily
                 }
                 catch
                 {
-                    Write-Host "Failed to open adapter properties. Opening adatper panel instead..."
+                    Write-Host "Failed to open adapter properties. Opening adapter panel instead..."
                     Start-Process "ncpa.cpl"
                 }
             }
