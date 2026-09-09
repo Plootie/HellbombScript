@@ -1867,6 +1867,12 @@ Function Test-DnsFamily
     {
         Write-Host "[FAIL] " -NoNewline -ForegroundColor Red
         Write-Host "Could not query $AddressFamily DNS servers: $($_.Exception.Message)"
+        if($AddressFamily -eq "IPv6")
+        {
+            Write-Host 'IPv6 issues detected. Please disable IPv6 on your network adapter.' -ForegroundColor Yellow
+            Write-Host "Opening the Network Adapters screen now..." -ForegroundColor Cyan
+            Start-Process "ncpa.cpl"
+        }
         return
     }
  
