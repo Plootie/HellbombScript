@@ -1871,7 +1871,16 @@ Function Test-DnsFamily
         {
             Write-Host 'IPv6 issues detected. Please disable IPv6 on your network adapter.' -ForegroundColor Yellow
             Write-Host "Opening the Network Adapters screen now..." -ForegroundColor Cyan
-            Start-Process "ncpa.cpl"
+            try
+            {
+                $NICPanel = (New-Object -com "Shell.Application").Namespace(0x31).Items() | Where-Object {$_.Name -eq $Adapter.Name} | Select-Object -First 1
+                $NICPanel.InvokeVerb("Properties")
+            }
+            catch
+            {
+                Write-Host "Failed to open adapter properties. Opening adatper panel instead..."
+                Start-Process "ncpa.cpl"
+            }
         }
         return
     }
@@ -1895,11 +1904,22 @@ Function Test-DnsFamily
 
                 if($Adapter.Virtual)
                 {
-                    Write-Host "Ensure IPv6 is disabled in your VPN or.."
+                    Write-Host "Ensure IPv6 is disabled on the virtual network adapter or.."
                 }
                 Write-Host "Consider setting an IPv6 DNS server like " -NoNewline
                 Write-Host "2606:4700:4700::1111" -ForegroundColor Cyan -NoNewLine
                 Write-Host " on your network adapter."
+                Write-Host "Opening the Network Adapters screen now..." -ForegroundColor Cyan
+                try
+                {
+                    $NICPanel = (New-Object -com "Shell.Application").Namespace(0x31).Items() | Where-Object {$_.Name -eq $Adapter.Name} | Select-Object -First 1
+                    $NICPanel.InvokeVerb("Properties")
+                }
+                catch
+                {
+                    Write-Host "Failed to open adapter properties. Opening adatper panel instead..."
+                    Start-Process "ncpa.cpl"
+                }
             }
         }
 
