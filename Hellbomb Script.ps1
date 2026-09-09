@@ -1829,19 +1829,27 @@ Function Test-ClientDnsConfig {
     $bestRoute = $wildcardRoutes | Sort-Object { $_.InterfaceMetric + $_.RouteMetric } | Select-Object -First 1
     $mainAdapter = $bestRoute | Get-NetAdapter
 
-    Test-DnsFamily -AddressFamily IPv4 -InterfaceIndex $mainAdapter.InterfaceIndex -Hostname $hostname
-    Test-DnsFamily -AddressFamily IPv6 -InterfaceIndex $mainAdapter.InterfaceIndex -Hostname $hostname
+    Test-DnsFamily -AddressFamily IPv4 -Adapter $mainAdapter -Hostname $hostname
+    Test-DnsFamily -AddressFamily IPv6 -Adapter $mainAdapter -Hostname $hostname
 }
 
-FUnction Test-DnsFamily
+Function Test-DnsFamily
 {
     param(
         [Parameter(Mandatory)][ValidateSet('IPv4', 'IPv6')][string]$AddressFamily,
-        [Parameter(Mandatory)][int]$InterfaceIndex,
+        [Parameter(Mandatory)]
+        [ValidateScript({
+            if ($_.CimClass.CimClassName -ne 'MSFT_NetAdapter') {
+                throw "Object must be a MSFT_NetAdapter instance (from Get-NetAdapter)."
+            }
+            $true
+        })]
+        [Microsoft.Management.Infrastructure.CimInstance]
+        $Adapter,
         [Parameter(Mandatory)][string]$Hostname
     )
 
-    $IPv6Enabled = Get-NetAdapterBinding -Name $mainAdapter.Name -ComponentID ms_tcpip6 | Select-Object -ExpandProperty Enabled
+    $IPv6Enabled = Get-NetAdapterBinding -Name $Adapter.Name -ComponentID ms_tcpip6 | Select-Object -ExpandProperty Enabled
     if($AddressFamily -eq "IPv6" -and -not $IPv6Enabled)
     {
         Write-Host "$([Environment]::NewLine)Skipping IPv6 checks because IPv6 is disabled." -ForegroundColor Cyan
@@ -1853,7 +1861,7 @@ FUnction Test-DnsFamily
     $dnsServers = $null
     try 
     {
-        $dnsServers = Get-DnsClientServerAddress -InterfaceIndex $InterfaceIndex -AddressFamily $AddressFamily -ErrorAction Stop
+        $dnsServers = Get-DnsClientServerAddress -InterfaceIndex $Adapter.InterfaceIndex -AddressFamily $AddressFamily -ErrorAction Stop
     }
     catch
     {
