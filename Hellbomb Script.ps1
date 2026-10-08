@@ -3482,6 +3482,7 @@ function Get-VDFValue
 
     $current
 }
+
 Write-Host 'Locating Steam...' -ForegroundColor Cyan
 # Set AppID
 $script:AppID = "553850"
@@ -3545,42 +3546,57 @@ $script:SteamPath = switch ($script:DetectedOS)
     }
 }
 
-Write-Host 'Locating Steam Library Data...' -ForegroundColor Cyan
-#Library Parsing
-$LibraryPath = Join-Path $script:SteamPath -ChildPath "steamapps\libraryfolders.vdf"
-$LibraryData = Get-Content -Path $LibraryPath -Raw -Encoding UTF8
-$ParsedLibrary = Read-VDF -Content $LibraryData
-
-ForEach($libraryEntry in $ParsedLibrary["libraryfolders"].GetEnumerator())
+Function Find-SteamApp
 {
-    $library = $libraryEntry.Value
-    if(-Not $library["apps"].ContainsKey($script:AppID)) { continue }
+    param(
+        [Parameter(Mandatory)][string]$SteamPath,
+        [Parameter(Mandatory)][int]$AppID
+    )
 
+    $vdfPath = Join-Path $SteamPath "steamapps\libraryfolders.vdf"
+    $parsed = Read-VDF -Content (Get-Content -LiteralPath $vdfPath -Raw -Encoding UTF8 -ErrorAction Stop)
+
+    foreach ($entry in $parsed["libraryfolders"].GetEnumerator())
+    {
+        $library = $entry.Value
+        $libraryPath  = $library["path"]
+        $manifestPath = Join-Path $libraryPath "steamapps\appmanifest_$AppID.acf"
+        Write-Host "Scanning $libraryPath for appmanifest_$AppID.acf"
+
+        if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) { continue }
+
+        $manifest = Read-VDF -Content (Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 -ErrorAction Stop)
+        $buildID = Get-VDFValue $manifest "AppState:buildid"
+        $installDir = Get-VDFValue $manifest "AppState:installdir"
+
+        return [pscustomobject]@{
+            AppID        = $AppID
+            BuildID      = $buildID
+            ManifestPath = $manifestPath
+            InstallPath  = Join-Path $libraryPath "steamapps\common\$installDir"
+        }
+    }
+}
+
+$steamAppInfo = Find-SteamApp -SteamPath $script:SteamPath -AppID $script:AppID
+if($null -eq $steamAppInfo)
+{
+    Write-Host "[WARN] " -NoNewline -ForegroundColor Yellow
+    Write-Host "Failed to find Helldivers 2"
+
+    Write-Host "If you moved Helldivers 2 without telling Steam, this can cause problems." -ForegroundColor Cyan
+    Write-Host "See https://help.steampowered.com/en/faqs/view/4578-18A7-C819-8620." -ForegroundColor Cyan
+    Write-Host "Several options will crash the script including mod deletion, resetting GameGuard, Full Screen Optimizations toggle and setting GPU options." -ForegroundColor Yellow
+    Write-Host "Press [SPACEBAR] to continue..."
+    pause
+}
+else
+{
+    #Replacing this is outside the scope of this change
     $script:AppIDFound = $true
-
-    $GameDataPath = Join-Path $library["path"] -ChildPath "steamapps\appmanifest_$script:AppID.acf"
-    $GameDataContent = $null
-    Try
-    {
-        $GameDataContent = Get-Content -Path $GameDataPath -Raw -Encoding UTF8 -ErrorAction Stop
-    }
-    Catch
-    {
-        Write-Host "Error retrieving $GameDataPath" -ForegroundColor Yellow
-        Write-Host "If you moved Helldivers 2 without telling Steam, this can cause problems." -ForegroundColor Cyan
-        Write-Host "See https://help.steampowered.com/en/faqs/view/4578-18A7-C819-8620." -ForegroundColor Cyan
-        Write-Host "Several options will crash the script including mod deletion, resetting GameGuard, Full Screen Optimizations toggle and setting GPU options." -ForegroundColor Yellow
-        Write-Host "Press [SPACEBAR] to continue..."
-        pause
-        $script:AppInstallPath = $false
-        break
-    }
-
-    $ParsedGameData = Read-VDF $GameDataContent
-    $script:BuildID = $ParsedGameData["AppState"]["buildid"]
-    Write-Host "Parsed BuildID: $script:BuildID" -ForegroundColor Cyan
-    $script:AppInstallPath = [System.IO.Path]::Combine($library["path"], "steamapps\common", $ParsedGameData["AppState"]["installdir"])
-    $script:AppManifestPath = Join-Path $library["path"] -ChildPath "\steamapps\appmanifest_$script:AppID.acf"
+    $script:AppManifestPath = $steamAppInfo.ManifestPath
+    $script:BuildID = $steamAppInfo.BuildID
+    $script:AppInstallPath = $steamAppInfo.InstallPath
 }
 
 Get-MostRecentlyUsedSteamProfilePath
