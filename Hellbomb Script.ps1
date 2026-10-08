@@ -3424,26 +3424,63 @@ function Get-VDFValue {
 
     return $current
 }
-function Split-VDFPath
+function ConvertFrom-VDFEscape
 {
-    param([string]$Path)
+    param([string]$Text)
 
-    $regex = '"((?:\\.|[^"\\])*)"|[^.]+'
-    $parts = @()
+    if ($Text.IndexOf('\') -lt 0) { return $Text }
 
-    foreach ($m in [regex]::Matches($Path, $regex))
+    $sb = [System.Text.StringBuilder]::new($Text.Length)
+    for ($i = 0; $i -lt $Text.Length; $i++)
     {
-        if ($m.Groups[1].Success)
+        $c = $Text[$i]
+        if ($c -eq '\' -and ($i + 1) -lt $Text.Length)
         {
-            $parts += [regex]::Unescape($m.Groups[1].Value)
+            $i++
+            switch -CaseSensitive ([string]$Text[$i])
+            {
+                'n'     { [void]$sb.Append("`n") }
+                't'     { [void]$sb.Append("`t") }
+                '\'     { [void]$sb.Append('\') }
+                '"'     { [void]$sb.Append('"') }
+                default { [void]$sb.Append('\').Append($Text[$i]) }  #unknown escape
+            }
         }
         else
         {
-            $parts += $m.Value
+            [void]$sb.Append($c)
         }
     }
+    return $sb.ToString()
+}
 
-    return $parts
+function Get-VDFValue
+{
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory, Position = 0)][AllowNull()]
+        $Root,
+
+        [Parameter(Mandatory, Position = 1)]
+        [string[]]$Path,
+
+        [string]$Separator = ':',
+
+        $Default = $null
+    )
+
+    $current = $Root
+
+    foreach ($segment in ($Path -split [regex]::Escape($Separator)))
+    {
+        if ($current -isnot [System.Collections.IDictionary] -or -not $current.Contains($segment))
+        {
+            return $Default
+        }
+        $current = $current[$segment]
+    }
+
+    $current
 }
 Write-Host 'Locating Steam...' -ForegroundColor Cyan
 # Set AppID
