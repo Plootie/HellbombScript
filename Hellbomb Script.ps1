@@ -3561,7 +3561,7 @@ Function Find-SteamApp
         $library = $entry.Value
         $libraryPath  = $library["path"]
         $manifestPath = Join-Path $libraryPath "steamapps\appmanifest_$AppID.acf"
-        Write-Host "Scanning $libraryPath for appmanifest_$AppID.acf"
+        Write-Host "Scanning $(Join-Path $libraryPath "steamapps\") for appmanifest_$AppID.acf"
 
         if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) { continue }
 
